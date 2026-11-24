@@ -2,7 +2,7 @@ name: Reel Gen V2 CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, fix/verified-reference-qa]
   pull_request:
     branches: [main]
 
@@ -17,9 +17,40 @@ jobs:
           cache: npm
       - name: Install FFmpeg
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
-      - name: Verify Zero Supabase Dependencies
+      - name: Verify Zero Supabase Runtime Dependencies
         run: |
-          node --input-type=module -e 'import fs from "node:fs"; const p=JSON.parse(fs.readFileSync("package.json","utf8")); const deps=Object.keys({...p.dependencies,...p.devDependencies}); if(deps.some(n=>n.toLowerCase().includes("supabase"))){console.error("Forbidden Supabase dependency"); process.exit(1)}'
+          node --input-type=module <<'CHECK'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          const deps = Object.keys({ ...pkg.dependencies, ...pkg.devDependencies, ...pkg.optionalDependencies });
+          const forbidden = deps.filter(name => /supabase/i.test(name));
+          if (forbidden.length) {
+            console.error('Forbidden Supabase packages:', forbidden.join(', '));
+            process.exit(1);
+          }
+          const extensions = new Set(['.js', '.mjs', '.cjs', '.ts', '.tsx', '.jsx']);
+          const files = [];
+          function walk(folder) {
+            if (!fs.existsSync(folder)) return;
+            for (const entry of fs.readdirSync(folder, { withFileTypes: true })) {
+              const full = path.join(folder, entry.name);
+              if (entry.isDirectory()) walk(full);
+              else if (extensions.has(path.extname(full))) files.push(full);
+            }
+          }
+          walk('src');
+          const importPattern = /(?:from\s*['"]|require\s*\(\s*['"]|import\s*\(\s*['"])(?:@supabase\/|supabase(?:\/|['"]))/i;
+          const violations = files.filter(file => importPattern.test(fs.readFileSync(file, 'utf8')));
+          if (violations.length) {
+            console.error('Forbidden Supabase imports:', violations.join(', '));
+            process.exit(1);
+          }
+          console.log('No Supabase packages or runtime imports found.');
+          CHECK
+      - name: Check setup shell syntax
+        run: |
+          if [ -f setup-cloudflare-and-vercel.sh ]; then bash -n setup-cloudflare-and-vercel.sh; fi
       - name: Install dependencies
         run: npm ci
       - name: TypeScript typecheck
