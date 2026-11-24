@@ -11,7 +11,9 @@ export default function MediaLibraryPage() {
   const [kindFilter, setKindFilter] = useState<'all' | MediaKind>('all');
   const [uploading, setUploading] = useState(false);
   const [previewItem, setPreviewItem] = useState<MediaAssetRecord | null>(null);
+  const [sortBy, setSortBy] = useState<'newest' | 'name' | 'size'>('newest');
   const fileRef = useRef<HTMLInputElement>(null);
+  const folderRef = useRef<HTMLInputElement>(null);
 
   const loadMedia = () => {
     fetch('/api/state')
@@ -42,19 +44,25 @@ export default function MediaLibraryPage() {
     }
   };
 
-  const filtered = media.filter((m) => {
-    if (kindFilter !== 'all' && m.kind !== kindFilter) return false;
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      return (
-        m.fileName.toLowerCase().includes(q) ||
-        (m.shootName || '').toLowerCase().includes(q) ||
-        (m.locationLabel || '').toLowerCase().includes(q) ||
-        (m.cameraLabel || '').toLowerCase().includes(q)
-      );
-    }
-    return true;
-  });
+  const filtered = media
+    .filter((m) => {
+      if (kindFilter !== 'all' && m.kind !== kindFilter) return false;
+      if (search.trim()) {
+        const q = search.toLowerCase();
+        return (
+          m.fileName.toLowerCase().includes(q) ||
+          (m.shootName || '').toLowerCase().includes(q) ||
+          (m.locationLabel || '').toLowerCase().includes(q) ||
+          (m.cameraLabel || '').toLowerCase().includes(q)
+        );
+      }
+      return true;
+    })
+    .sort((a, b) => {
+      if (sortBy === 'name') return a.fileName.localeCompare(b.fileName);
+      if (sortBy === 'size') return b.sizeBytes - a.sizeBytes;
+      return b.createdAt.localeCompare(a.createdAt);
+    });
 
   // Group by inferred shoot
   const grouped = filtered.reduce<Record<string, MediaAssetRecord[]>>((acc, item) => {
@@ -83,18 +91,35 @@ export default function MediaLibraryPage() {
             <Upload className="h-4 w-4" />
             {uploading ? 'Indexing…' : 'Add Media'}
           </button>
+          <button
+            type="button"
+            onClick={() => folderRef.current?.click()}
+            disabled={uploading}
+            className="inline-flex items-center gap-2 rounded-xl border border-[#303441] bg-[#171A23] hover:bg-[#222633] px-4 py-2 text-xs font-semibold"
+          >
+            <FolderOpen className="h-4 w-4" />
+            Import Folder
+          </button>
           <Link
             href="/drives"
             className="inline-flex items-center gap-2 rounded-xl border border-[#303441] bg-[#171A23] hover:bg-[#222633] px-4 py-2 text-xs font-semibold"
           >
-            <FolderOpen className="h-4 w-4" />
             Connect Drive
           </Link>
           <input ref={fileRef} type="file" multiple className="hidden" onChange={(e) => handleUpload(e.target.files)} />
+          <input
+            ref={folderRef}
+            type="file"
+            multiple
+            // @ts-expect-error webkitdirectory is standard in modern browsers
+            webkitdirectory=""
+            className="hidden"
+            onChange={(e) => handleUpload(e.target.files)}
+          />
         </div>
       </div>
 
-      {/* Search & Filters */}
+      {/* Search, Sort & Filters */}
       <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-[#303441] bg-[#171A23] p-4">
         <div className="relative flex-1 min-w-[220px]">
           <Search className="absolute left-3 top-2.5 h-4 w-4 text-[#A6AFC0]" />
@@ -106,6 +131,16 @@ export default function MediaLibraryPage() {
             className="w-full rounded-lg border border-[#3B4052] bg-[#0B0D12] pl-9 pr-3 py-2 text-xs text-[#F5F5F8] focus:border-[#9A83FF] focus:outline-none"
           />
         </div>
+        <select
+          aria-label="Sort media"
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value as 'newest' | 'name' | 'size')}
+          className="rounded-lg border border-[#3B4052] bg-[#0B0D12] px-3 py-2 text-xs text-[#F5F5F8]"
+        >
+          <option value="newest">Sort: Newest</option>
+          <option value="name">Sort: Name A–Z</option>
+          <option value="size">Sort: Largest</option>
+        </select>
         <div className="flex flex-wrap gap-1.5">
           {(['all', 'video', 'image', 'audio', 'document', 'archive'] as const).map((k) => (
             <button

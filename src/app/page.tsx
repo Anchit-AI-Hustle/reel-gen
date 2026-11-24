@@ -872,12 +872,21 @@ export default function CreatePage() {
                 </Link>
                 <button
                   type="button"
+                  disabled={generating || revising}
+                  onClick={handleGenerate}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#303441] bg-[#11141C] hover:bg-[#1C202C] px-4 py-2 text-xs font-medium text-[#D5D9E6]"
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Regenerate
+                </button>
+                <button
+                  type="button"
                   disabled={revising}
                   onClick={() => handleCopilotRevise('alternative')}
-                  className="col-span-2 inline-flex items-center justify-center gap-2 rounded-xl border border-[#303441] bg-[#11141C] hover:bg-[#1C202C] px-4 py-2 text-xs font-medium text-[#D5D9E6]"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#303441] bg-[#11141C] hover:bg-[#1C202C] px-4 py-2 text-xs font-medium text-[#D5D9E6]"
                 >
                   <RefreshCw className={`h-3.5 w-3.5 ${revising ? 'animate-spin' : ''}`} />
-                  Generate Alternative Cut
+                  Create Alternative
                 </button>
               </div>
 

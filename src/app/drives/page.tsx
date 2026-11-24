@@ -31,6 +31,23 @@ export default function CloudDrivesPage() {
     setValidationResult({ valid: data.valid || [], invalid: data.invalid || [] });
   };
 
+  const [connectError, setConnectError] = useState<string | null>(null);
+
+  const handleConnect = async (providerId: string) => {
+    setConnectError(null);
+    const res = await fetch('/api/cloud/connect', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ providerId }),
+    });
+    const data = await res.json();
+    if (res.ok && data.authorizeUrl) {
+      window.location.href = data.authorizeUrl;
+    } else {
+      setConnectError(data.error || 'OAuth setup is required before connecting.');
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -39,6 +56,12 @@ export default function CloudDrivesPage() {
           Connect your footage sources and import complete folders through official OAuth APIs.
         </p>
       </div>
+
+      {connectError && (
+        <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-xs text-amber-200">
+          {connectError}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {providers.map((p) => (
@@ -79,6 +102,7 @@ export default function CloudDrivesPage() {
             ) : (
               <button
                 type="button"
+                onClick={() => handleConnect(p.id)}
                 className="w-full rounded-xl bg-[#9A83FF] hover:bg-[#AE9BFF] py-2 text-xs font-bold text-[#0F0B20]"
               >
                 Connect {p.name}

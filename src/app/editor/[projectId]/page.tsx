@@ -37,19 +37,27 @@ export default function ProjectEditorPage() {
   const [busy, setBusy] = useState(false);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
 
+  const [notFound, setNotFound] = useState(false);
+
   useEffect(() => {
     if (!projectId) return;
     fetch(`/api/projects/${projectId}`)
-      .then((r) => r.json())
+      .then(async (r) => {
+        if (!r.ok) {
+          setNotFound(true);
+          return null;
+        }
+        return r.json();
+      })
       .then((d) => {
-        if (d.project) {
+        if (d?.project) {
           setProject(d.project);
           setEdl(d.project.currentEdl);
           setSelectedClipId(d.project.currentEdl?.clips?.[0]?.id ?? null);
         }
-        if (Array.isArray(d.media)) setMedia(d.media);
+        if (Array.isArray(d?.media)) setMedia(d.media);
       })
-      .catch(() => {});
+      .catch(() => setNotFound(true));
   }, [projectId]);
 
   const mutateEdl = (updater: (draft: TimelineEdl) => TimelineEdl) => {
@@ -186,6 +194,40 @@ export default function ProjectEditorPage() {
     }
   };
 
+  const handleGenerateAlternative = async () => {
+    if (!project) return;
+    setBusy(true);
+    setStatusMsg('Generating alternative story cut & rendering MP4…');
+    try {
+      const res = await fetch(`/api/projects/${project.id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'alternative' }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Alternative generation failed');
+      setProject(data.project);
+      setEdl(data.project.currentEdl);
+      setStatusMsg(data.summary);
+    } catch (err: any) {
+      setStatusMsg(err?.message || 'Could not generate alternative');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (notFound) {
+    return (
+      <div className="rounded-2xl border border-[#303441] bg-[#171A23] p-8 text-center space-y-3">
+        <p className="text-sm font-semibold">Project not found</p>
+        <p className="text-xs text-[#A6AFC0]">This project ID does not exist in your workspace.</p>
+        <Link href="/editor" className="inline-block rounded-lg bg-[#9A83FF] px-4 py-2 text-xs font-bold text-[#0F0B20]">
+          Back to projects
+        </Link>
+      </div>
+    );
+  }
+
   if (!project || !edl) {
     return (
       <div className="rounded-2xl border border-[#303441] bg-[#171A23] p-8 text-center space-y-3">
@@ -233,6 +275,14 @@ export default function ProjectEditorPage() {
             className="inline-flex items-center gap-1.5 rounded-lg border border-[#3B4052] bg-[#222633] px-3.5 py-2 text-xs font-semibold"
           >
             <Save className="h-3.5 w-3.5" /> Save
+          </button>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={handleGenerateAlternative}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-[#3B4052] bg-[#222633] hover:bg-[#2C3142] px-3.5 py-2 text-xs font-semibold"
+          >
+            <RefreshCw className="h-3.5 w-3.5" /> Alternative
           </button>
           <button
             type="button"
