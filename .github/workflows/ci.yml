@@ -1,0 +1,33 @@
+name: Reel Gen V2 CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install FFmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Verify Zero Supabase Dependencies
+        run: |
+          if grep -ri "supabase" package.json src/ db/; then
+            echo "ERROR: Supabase reference detected!"
+            exit 1
+          fi
+      - name: Install dependencies
+        run: npm ci
+      - name: TypeScript typecheck
+        run: npm run typecheck
+      - name: Run unit, constraint, security & real FFmpeg MP4 tests
+        run: npm test
+      - name: Build production Next.js app
+        run: npm run build

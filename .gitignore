@@ -1,0 +1,7 @@
+node_modules/
+.next/
+.reel-gen-data/
+.env
+.env.local
+*.log
+.DS_Store
