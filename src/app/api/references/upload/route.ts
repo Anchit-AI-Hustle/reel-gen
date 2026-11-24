@@ -14,12 +14,13 @@ export async function POST(request: Request) {
     const prompt = String(formData.get('prompt') || '');
     const explicitRole = String(formData.get('role') || '') as ReferenceRoleType | '';
     const customLabel = String(formData.get('label') || '').trim();
-    const consentConfirmed = String(formData.get('consentConfirmed') || 'true') === 'true';
+    const consentConfirmed = String(formData.get('consentConfirmed') || 'false') === 'true';
 
     if (!file) {
       return NextResponse.json({ error: 'No reference image provided' }, { status: 400 });
     }
 
+    if (!consentConfirmed) return NextResponse.json({ error: 'Permission to process reference images must be confirmed before upload.' }, { status: 400 });
     const buffer = Buffer.from(await file.arrayBuffer());
     const id = `ref_${crypto.randomBytes(5).toString('hex')}`;
     const safeName = path.basename(file.name).replace(/[^a-zA-Z0-9._ -]/g, '_');
