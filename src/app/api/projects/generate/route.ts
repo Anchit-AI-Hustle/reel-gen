@@ -33,6 +33,15 @@ export async function POST(request: Request) {
     const style = String(body.style || 'smart');
     const allowShortenedReel = Boolean(body.allowShortenedReel ?? true);
 
+    // Until a validated semantic matching backend is available, do not issue false
+    // confirmations or silently relax a user's reference requirements.
+    if (references.some((r) => !r.consentConfirmed)) {
+      return NextResponse.json({ error: 'Confirm authorization for all reference images and source footage.' }, { status: 403 });
+    }
+    if (references.some((r) => r.role === 'person_include' || r.role === 'person_exclude' || r.role === 'product_feature' || r.role === 'object_find' || r.role === 'scene_reference')) {
+      return NextResponse.json({ error: 'Verified reference-subject matching is not available yet. No reel has been generated against these unverified requirements. Use a style reference or wait for validated subject matching.' }, { status: 422 });
+    }
+
     const state = readWorkspaceState();
     const selectedAssets =
       assetIds.length > 0

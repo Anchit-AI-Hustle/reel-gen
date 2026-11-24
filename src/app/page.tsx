@@ -68,7 +68,7 @@ export default function CreatePage() {
   const [showCloudInput, setShowCloudInput] = useState(false);
   const [brief, setBrief] = useState('');
   const [references, setReferences] = useState<ReferenceAsset[]>([]);
-  const [consentConfirmed, setConsentConfirmed] = useState(true);
+  const [consentConfirmed, setConsentConfirmed] = useState(false);
 
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [durationSec, setDurationSec] = useState(30);
@@ -307,10 +307,6 @@ export default function CreatePage() {
     }
   };
 
-  const hasPersonReference = references.some(
-    (r) => r.role === 'person_include' || r.role === 'person_exclude'
-  );
-
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -513,7 +509,7 @@ export default function CreatePage() {
                 2. Describe your reel <span className="text-xs font-normal text-[#A6AFC0]">(optional)</span>
               </h2>
               <p className="text-xs text-[#A6AFC0]">
-                Describe your reel in your own words. Add reference images to help Reel Gen find specific people, products, or moments.
+                Describe your reel in your own words. Attach optional visual references. Automatic subject matching is not yet verified; unverified requirements will not be silently ignored.
               </p>
             </div>
 
@@ -530,12 +526,18 @@ export default function CreatePage() {
                 className="w-full rounded-xl border border-[#3B4052] bg-[#0E1118] px-3.5 py-3 text-sm text-[#F5F5F8] placeholder:text-[#6E778C] focus:border-[#9A83FF] focus:outline-none"
               />
 
+              <label className="flex items-start gap-2 text-xs text-[#C7CDD9] cursor-pointer">
+                <input type="checkbox" checked={consentConfirmed} onChange={(e) => setConsentConfirmed(e.target.checked)} className="mt-0.5 accent-[#9A83FF]" />
+                <span><ShieldCheck className="inline h-3.5 w-3.5 text-[#9A83FF] mr-1" />I have permission to use these reference images and source footage. Required only when attaching reference images.</span>
+              </label>
+
               {/* Inline Reference Image Attachment Control */}
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <button
                   type="button"
                   onClick={() => refInputRef.current?.click()}
-                  className="inline-flex items-center gap-2 rounded-lg border border-[#4E447E] bg-[#221D3A] hover:bg-[#2D264D] px-3 py-1.5 text-xs font-semibold text-[#DDD4FF]"
+                  disabled={!consentConfirmed}
+                  className="disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2 rounded-lg border border-[#4E447E] bg-[#221D3A] hover:bg-[#2D264D] px-3 py-1.5 text-xs font-semibold text-[#DDD4FF]"
                 >
                   <ImagePlus className="h-3.5 w-3.5" />
                   Add reference images
@@ -596,20 +598,7 @@ export default function CreatePage() {
                     ))}
                   </div>
 
-                  {hasPersonReference && (
-                    <label className="flex items-start gap-2 text-xs text-[#C7CDD9] cursor-pointer pt-1">
-                      <input
-                        type="checkbox"
-                        checked={consentConfirmed}
-                        onChange={(e) => setConsentConfirmed(e.target.checked)}
-                        className="mt-0.5 accent-[#9A83FF]"
-                      />
-                      <span>
-                        <ShieldCheck className="inline h-3.5 w-3.5 text-[#9A83FF] mr-1" />
-                        I confirm I am authorized to process these reference photos and source footage. Visual representations stay scoped to this project only.
-                      </span>
-                    </label>
-                  )}
+
                 </div>
               )}
 
