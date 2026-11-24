@@ -6,7 +6,7 @@ import {
   getDataDir,
   readWorkspaceState,
   writeWorkspaceState,
-} from '@/lib/db/neon-store';
+} from '@/lib/db/cloudflare-store';
 import { parseCreativeInstruction } from '@/lib/nlp/constraint-parser';
 import { analyzeVideoSegments, renderEdlToMp4 } from '@/lib/render/ffmpeg-worker';
 import { buildStoryTimeline } from '@/lib/story/highlight-engine';

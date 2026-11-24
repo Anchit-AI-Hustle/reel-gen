@@ -1,6 +1,0 @@
-import {test} from 'node:test';import assert from 'node:assert/strict';
-import {assertNeonUrl,ReelRepository} from '../src/neon-repository.mjs';
-const ids=['11111111-1111-4111-8111-111111111111','22222222-2222-4222-8222-222222222222'];
-test('Neon connection validator requires SSL and Neon host',()=>{assert.equal(assertNeonUrl('postgresql://user:pw@ep-abcd.us-east-1.aws.neon.tech/db?sslmode=require'),true);assert.throws(()=>assertNeonUrl('postgresql://user:pw@localhost/db?sslmode=require'));assert.throws(()=>assertNeonUrl('postgresql://user:pw@ep-abcd.neon.tech/db'))});
-test('Projects are filtered by workspace and safely parameterized',async()=>{let calls=[],repo=new ReelRepository(async(q,a)=>{calls.push([q,a]);return[]});await repo.createProject({workspaceId:ids[0],userId:ids[1],title:"Someone's reel"});await repo.getProjects(ids[0]);assert.match(calls[0][0],/VALUES\(\$1,\$2/);assert.equal(calls[0][1][3],"Someone's reel");assert.match(calls[1][0],/WHERE workspace_id=\$1/)});
-test('Timeline versions are persisted as explicit JSON data',async()=>{let calls=[],repo=new ReelRepository(async(q,a)=>{calls.push([q,a]);return q.startsWith('SELECT')?[{version:4}]:[]});let v=await repo.saveTimeline({projectId:ids[0],workspaceId:ids[1],edl:{clips:[]}});assert.equal(v,4);assert.match(calls[1][0],/INSERT INTO timelines/);assert.equal(calls[1][1][1],4)});

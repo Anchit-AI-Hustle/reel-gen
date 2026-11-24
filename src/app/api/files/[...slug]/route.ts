@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { NextResponse } from 'next/server';
-import { getDataDir } from '@/lib/db/neon-store';
+import { getDataDir } from '@/lib/db/cloudflare-store';
 
 const ALLOWED_BUCKETS = new Set(['uploads', 'references', 'renders', 'thumbnails']);
 

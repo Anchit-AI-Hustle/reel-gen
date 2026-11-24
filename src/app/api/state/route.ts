@@ -4,7 +4,7 @@ import {
   getDatabaseStatus,
   readWorkspaceState,
   writeWorkspaceState,
-} from '@/lib/db/neon-store';
+} from '@/lib/db/cloudflare-store';
 import { getCloudProvidersStatus } from '@/lib/cloud/providers';
 
 export async function GET() {

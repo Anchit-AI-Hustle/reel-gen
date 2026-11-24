@@ -51,7 +51,11 @@ export default function DashboardPage() {
         {data.database && (
           <div className="inline-flex items-center gap-2 rounded-full border border-[#303441] bg-[#171A23] px-3.5 py-1.5 text-xs">
             <Database className={`h-3.5 w-3.5 ${data.database.configured ? 'text-emerald-400' : 'text-amber-400'}`} />
-            <span>{data.database.configured ? 'Neon PostgreSQL Connected' : 'Local Durable Store (Neon Pending)'}</span>
+            <span>
+              {data.database.configured
+                ? 'Cloudflare D1 + R2 Connected'
+                : 'Local Durable Store (Cloudflare D1 Pending)'}
+            </span>
           </div>
         )}
       </div>

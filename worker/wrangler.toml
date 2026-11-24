@@ -1,0 +1,17 @@
+name = "reel-gen-api"
+main = "../src/cloudflare/index.ts"
+compatibility_date = "2026-11-24"
+
+# Replace database_id with the actual UUID returned by `wrangler d1 create reel-gen-db`
+[[d1_databases]]
+binding = "DB"
+database_name = "reel-gen-db"
+database_id = "PENDING_D1_PROVISIONING"
+migrations_dir = "../db/migrations"
+
+[[r2_buckets]]
+binding = "MEDIA_BUCKET"
+bucket_name = "reel-gen-media"
+
+[vars]
+APP_URL = "https://reel-gen.anchit-tandon.com"

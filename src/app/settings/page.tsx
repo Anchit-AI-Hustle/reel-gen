@@ -51,7 +51,7 @@ export default function SettingsPage() {
           <SettingsIcon className="h-6 w-6 text-[#9A83FF]" /> Settings
         </h1>
         <p className="mt-1 text-sm text-[#A6AFC0]">
-          Configure output defaults, Neon PostgreSQL persistence, privacy retention, and zero-cost limits.
+          Configure output defaults, Cloudflare D1 + R2 persistence, privacy retention, and zero-cost limits.
         </p>
       </div>
 
@@ -64,14 +64,15 @@ export default function SettingsPage() {
       {/* Database status */}
       <section className="rounded-2xl border border-[#303441] bg-[#171A23] p-5 space-y-2">
         <h2 className="text-sm font-semibold flex items-center gap-2">
-          <Database className="h-4 w-4 text-[#9A83FF]" /> Database Persistence (Neon PostgreSQL Only)
+          <Database className="h-4 w-4 text-[#9A83FF]" /> Database &amp; Media Storage (Cloudflare D1 + Workers + R2)
         </h2>
         <p className="text-xs text-[#A6AFC0]">
-          {dbInfo?.detail || 'Checking Neon PostgreSQL configuration…'}
+          {dbInfo?.detail || 'Checking Cloudflare Worker API configuration…'}
         </p>
         <p className="text-[11px] text-[#6E778C]">
-          Zero Supabase dependencies. Set <code className="text-[#D7CDFF]">DATABASE_URL</code> and{' '}
-          <code className="text-[#D7CDFF]">DATABASE_URL_DIRECT</code> in Vercel for Neon Free persistence.
+          Cloudflare D1 + Workers + R2 backend. Set <code className="text-[#D7CDFF]">CLOUDFLARE_DB_API_URL</code>,{' '}
+          <code className="text-[#D7CDFF]">CLOUDFLARE_DB_API_TOKEN</code>, and{' '}
+          <code className="text-[#D7CDFF]">CLOUDFLARE_R2_BUCKET</code> in Vercel for live Cloudflare D1 + R2 persistence.
         </p>
       </section>
 

@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { NextResponse } from 'next/server';
-import { getDataDir } from '@/lib/db/neon-store';
+import { getDataDir } from '@/lib/db/cloudflare-store';
 import { inferReferenceRoleFromPrompt } from '@/lib/nlp/constraint-parser';
 import { validateReferenceImage } from '@/lib/vision/reference-matcher';
 import type { ReferenceAsset, ReferenceRoleType } from '@/types/reel-gen';
