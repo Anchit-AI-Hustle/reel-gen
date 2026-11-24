@@ -89,10 +89,13 @@ export default function CreatePage() {
   const [copilotInput, setCopilotInput] = useState('');
   const [revising, setRevising] = useState(false);
   const [revisionNote, setRevisionNote] = useState<string | null>(null);
+  const [replacingRefId, setReplacingRefId] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
   const refInputRef = useRef<HTMLInputElement>(null);
+  const replaceRefInputRef = useRef<HTMLInputElement>(null);
+  const generateAbortRef = useRef<AbortController | null>(null);
 
   // Restore draft state & load persisted workspace media
   useEffect(() => {
@@ -229,12 +232,41 @@ export default function CreatePage() {
   const hasCloudLinks = cloudLinksText.trim().length > 0;
   const canGenerate = (playableSelectedCount > 0 || hasCloudLinks) && !generating && !uploading;
 
+  const handleReplaceReference = async (fileList: FileList | null) => {
+    if (!fileList || fileList.length === 0 || !replacingRefId) return;
+    const f = fileList[0];
+    const target = references.find((r) => r.id === replacingRefId);
+    const form = new FormData();
+    form.append('file', f);
+    form.append('prompt', brief);
+    if (target) form.append('role', target.role);
+    form.append('consentConfirmed', String(consentConfirmed));
+    const res = await fetch('/api/references/upload', { method: 'POST', body: form });
+    const data = await res.json();
+    if (res.ok && data.reference) {
+      setReferences((prev) => prev.map((r) => (r.id === replacingRefId ? data.reference : r)));
+    } else {
+      setErrorMsg(data.error || `Failed to replace reference ${f.name}`);
+    }
+    setReplacingRefId(null);
+  };
+
+  const handleCancelGenerate = () => {
+    generateAbortRef.current?.abort();
+    generateAbortRef.current = null;
+    setGenerating(false);
+    setErrorMsg('Generation cancelled. Adjust your inputs and retry anytime.');
+  };
+
   const handleGenerate = async () => {
     setGenerating(true);
     setErrorMsg(null);
     setClarificationQ(null);
     setRevisionNote(null);
     setActiveStageIdx(0);
+
+    const controller = new AbortController();
+    generateAbortRef.current = controller;
 
     const timer = setInterval(() => {
       setActiveStageIdx((i) => (i < PIPELINE_STAGES.length - 1 ? i + 1 : i));
@@ -251,6 +283,7 @@ export default function CreatePage() {
       const res = await fetch('/api/projects/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
         body: JSON.stringify({
           brief,
           assetIds: selectedAssetIds,
@@ -273,9 +306,12 @@ export default function CreatePage() {
         setGeneratedProject(data.project);
       }
     } catch (err: any) {
-      setErrorMsg(err?.message || 'Failed to generate reel');
+      if (err?.name !== 'AbortError') {
+        setErrorMsg(err?.message || 'Failed to generate reel');
+      }
     } finally {
       clearInterval(timer);
+      generateAbortRef.current = null;
       setGenerating(false);
     }
   };
@@ -551,9 +587,16 @@ export default function CreatePage() {
                   className="hidden"
                   onChange={(e) => handleUploadReferences(e.target.files)}
                 />
+                <input
+                  ref={replaceRefInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => handleReplaceReference(e.target.files)}
+                />
               </div>
 
-              {/* Attached Reference Images with role labels */}
+              {/* Attached Reference Images with role labels, replace, and remove controls */}
               {references.length > 0 && (
                 <div className="space-y-2.5 rounded-xl border border-[#303441] bg-[#11141C] p-3">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
@@ -570,14 +613,27 @@ export default function CreatePage() {
                         <div className="min-w-0 flex-1 space-y-1">
                           <div className="flex items-center justify-between gap-1">
                             <p className="truncate text-xs font-medium">{ref.label}</p>
-                            <button
-                              type="button"
-                              aria-label={`Remove ${ref.label}`}
-                              onClick={() => removeRef(ref.id)}
-                              className="text-[#A6AFC0] hover:text-rose-400"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <button
+                                type="button"
+                                aria-label={`Replace ${ref.label}`}
+                                onClick={() => {
+                                  setReplacingRefId(ref.id);
+                                  replaceRefInputRef.current?.click();
+                                }}
+                                className="text-[10px] text-[#C7BAFF] hover:underline"
+                              >
+                                Replace
+                              </button>
+                              <button
+                                type="button"
+                                aria-label={`Remove ${ref.label}`}
+                                onClick={() => removeRef(ref.id)}
+                                className="text-[#A6AFC0] hover:text-rose-400"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
                           </div>
                           <select
                             value={ref.role}
@@ -739,7 +795,16 @@ export default function CreatePage() {
         <div className="lg:col-span-5 space-y-5">
           {generating ? (
             <section className="rounded-2xl border border-[#303441] bg-[#171A23] p-6 space-y-4">
-              <h2 className="text-lg font-semibold">Creating your reel</h2>
+              <div className="flex items-center justify-between gap-2">
+                <h2 className="text-lg font-semibold">Creating your reel</h2>
+                <button
+                  type="button"
+                  onClick={handleCancelGenerate}
+                  className="rounded-lg border border-[#3B4052] bg-[#222633] hover:bg-[#2C3142] px-3 py-1 text-xs font-medium text-[#F5F5F8]"
+                >
+                  Cancel
+                </button>
+              </div>
               <p className="text-xs text-[#A6AFC0]">
                 Running real FFprobe analysis, reference matching, story planning, and FFmpeg H.264 MP4 rendering.
               </p>

@@ -41,10 +41,13 @@ export async function handleWorkerRequest(request: Request, env: WorkerEnv): Pro
 
   const url = new URL(request.url);
   if (url.pathname === '/health' && request.method === 'GET') {
-    return jsonResponse({ ok: true, service: 'reel-gen-api', database: 'cloudflare-d1', storage: 'cloudflare-r2' }, 200, appUrl);
+    return jsonResponse(
+      { ok: true, service: 'reel-gen-api', database: 'cloudflare-d1', storage: 'cloudflare-r2' },
+      200,
+      appUrl
+    );
   }
 
-  // Every data & storage route requires authenticated Bearer token + signed workspace identity
   const auth = await verifyWorkerRequestAuth(request, env);
   if (!auth.ok) {
     return jsonResponse({ error: auth.error }, auth.status, appUrl);
@@ -55,14 +58,12 @@ export async function handleWorkerRequest(request: Request, env: WorkerEnv): Pro
   const storage = new R2MediaStorage(env.MEDIA_BUCKET);
 
   try {
-    // Workspace bootstrap
     await repo.ensureWorkspace({
       workspaceId,
       ownerUserId: actorId,
       email: `${actorId}@reel-gen.local`,
     });
 
-    // GET /v1/state
     if (url.pathname === '/v1/state' && request.method === 'GET') {
       const [projects, media, activity] = await Promise.all([
         repo.listProjects(workspaceId),
@@ -72,7 +73,6 @@ export async function handleWorkerRequest(request: Request, env: WorkerEnv): Pro
       return jsonResponse({ workspaceId, projects, media, activity }, 200, appUrl);
     }
 
-    // GET/POST /v1/projects
     if (url.pathname === '/v1/projects' && request.method === 'GET') {
       const projects = await repo.listProjects(workspaceId);
       return jsonResponse({ projects }, 200, appUrl);
@@ -104,7 +104,40 @@ export async function handleWorkerRequest(request: Request, env: WorkerEnv): Pro
       return jsonResponse({ project }, 201, appUrl);
     }
 
-    // POST /v1/projects/:id/versions
+    if (url.pathname === '/v1/media' && request.method === 'POST') {
+      const body = (await request.json()) as Record<string, any>;
+      const id = String(body.id || crypto.randomUUID());
+      await repo.insertMediaAsset({
+        id,
+        workspaceId,
+        projectId: body.projectId ? String(body.projectId) : null,
+        fileName: String(body.fileName || 'unnamed'),
+        relativePath: String(body.relativePath || body.fileName || 'unnamed'),
+        mimeType: String(body.mimeType || 'application/octet-stream'),
+        detectedKind: String(body.kind || 'unknown'),
+        decodable: Boolean(body.decodable),
+        sizeBytes: Number(body.sizeBytes || 0),
+        sha256Hash: String(body.sha256 || ''),
+        r2ObjectKey: String(body.r2ObjectKey || buildTenantR2Key({ workspaceId, category: 'uploads', fileName: String(body.fileName || id) })),
+        probe: body.probe || {},
+      });
+      return jsonResponse({ ok: true, id }, 201, appUrl);
+    }
+
+    if (url.pathname === '/v1/consent' && request.method === 'POST') {
+      const body = (await request.json()) as Record<string, any>;
+      const id = crypto.randomUUID();
+      await repo.recordConsent({
+        id,
+        workspaceId,
+        projectId: String(body.projectId),
+        consentType: body.consentType === 'source_footage_processing' ? 'source_footage_processing' : 'reference_person_matching',
+        granted: Boolean(body.granted),
+        statement: String(body.statement || 'User confirmed authorization to process reference images and footage.'),
+      });
+      return jsonResponse({ ok: true, id }, 201, appUrl);
+    }
+
     const versionMatch = url.pathname.match(/^\/v1\/projects\/([^/]+)\/versions$/);
     if (versionMatch && request.method === 'POST') {
       const projectId = versionMatch[1];
@@ -121,7 +154,6 @@ export async function handleWorkerRequest(request: Request, env: WorkerEnv): Pro
       return jsonResponse({ version: saved }, 201, appUrl);
     }
 
-    // DELETE /v1/references/biometrics
     if (url.pathname === '/v1/references/biometrics' && request.method === 'DELETE') {
       const cleared = await repo.purgeEphemeralReferenceDescriptors(workspaceId);
       await repo.recordAudit({
@@ -136,7 +168,6 @@ export async function handleWorkerRequest(request: Request, env: WorkerEnv): Pro
       return jsonResponse({ ok: true, cleared }, 200, appUrl);
     }
 
-    // R2 Media Storage: PUT / GET / DELETE /v1/storage/:category/:fileName
     const storageMatch = url.pathname.match(/^\/v1\/storage\/([^/]+)\/([^/]+)$/);
     if (storageMatch) {
       const category = storageMatch[1] as StorageBucketCategory;

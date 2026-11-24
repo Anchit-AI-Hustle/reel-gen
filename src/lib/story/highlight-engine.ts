@@ -432,7 +432,7 @@ export function applyCopilotRevision(params: {
   // 1. Shorter / specific duration e.g. "make it 15 seconds" or "make it shorter"
   const durMatch = lower.match(/\b(\d{1,3})[\s-]*(?:sec|second|seconds|s)\b/);
   if (durMatch || /\b(make it shorter|shorter)\b/.test(lower)) {
-    const newTarget = durMatch ? Math.max(5, Number(durMatch[1])) : Math.max(5, Math.round(next.actualDurationSec * 0.65));
+    const newTarget = durMatch ? Math.max(1, Number(durMatch[1])) : Math.max(2, Math.round(next.actualDurationSec * 0.65));
     next.targetDurationSec = newTarget;
     let acc = 0;
     const trimmed: EdlClip[] = [];
