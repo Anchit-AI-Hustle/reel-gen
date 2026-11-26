@@ -497,7 +497,7 @@ export default function CreatePage() {
                 2. Describe your reel <span className="text-xs font-normal text-[#A6AFC0]">(optional)</span>
               </h2>
               <p className="text-xs text-[#A6AFC0]">
-                Describe your reel in your own words. Add reference images to help Reel Gen find specific people, products, or moments.
+                Describe your reel in your own words. Attach optional visual references. Automatic subject matching is not yet verified; unverified requirements will not be silently ignored.
               </p>
             </div>
 
@@ -716,7 +716,7 @@ export default function CreatePage() {
             <section className="rounded-2xl border border-[#303441] bg-[#171A23] p-6 space-y-4">
               <h2 className="text-lg font-semibold">Creating your reel</h2>
               <p className="text-xs text-[#A6AFC0]">
-                Running real FFprobe analysis, reference matching, story planning, and FFmpeg H.264 MP4 rendering.
+                Analyzing available footage and preparing the edit. Rendering requires an available FFmpeg worker.
               </p>
               <div role="status" aria-live="polite" className="flex items-center gap-3 text-sm text-[#C7CDD9]"><Loader2 className="h-4 w-4 animate-spin text-[#9A83FF]" /> Waiting for the generation service. Verified stage updates are not available yet.</div>
             </section>

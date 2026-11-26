@@ -2,7 +2,7 @@ name: Reel Gen V2 CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, fix/verified-reference-qa]
   pull_request:
     branches: [main]
 
@@ -48,6 +48,9 @@ jobs:
           }
           console.log('No Supabase packages or runtime imports found.');
           CHECK
+      - name: Check setup shell syntax
+        run: |
+          if [ -f setup-cloudflare-and-vercel.sh ]; then bash -n setup-cloudflare-and-vercel.sh; fi
       - name: Install dependencies
         run: npm ci
       - name: TypeScript typecheck

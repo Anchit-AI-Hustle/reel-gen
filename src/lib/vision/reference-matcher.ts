@@ -8,7 +8,7 @@ const execFileAsync = promisify(execFile);
 export interface ReferenceValidationResult {
   usable: boolean;
   qualityScore: number;
-  faceCount: number;
+  faceCount: number | null;
   width: number;
   height: number;
   qualityNotes: string;
@@ -142,6 +142,23 @@ export function classifyConfidenceBand(confidence: number): 'high' | 'medium' | 
   return 'none';
 }
 
+/** A global color descriptor supports appearance similarity only, not semantic identity. */
+export function assessReferenceCandidate(
+  role: ReferenceRoleType,
+  referenceDescriptor: number[],
+  frameDescriptor: number[],
+): { confidence: number; band: 'high' | 'medium' | 'uncertain' | 'none' } {
+  if (role !== 'visual_style' && role !== 'composition_reference') {
+    return { confidence: 0, band: 'uncertain' };
+  }
+  if (!referenceDescriptor.length || !frameDescriptor.length ||
+      !referenceDescriptor.some(Boolean) || !frameDescriptor.some(Boolean)) {
+    return { confidence: 0, band: 'uncertain' };
+  }
+  const similarity = cosineSimilarity(referenceDescriptor, frameDescriptor);
+  return { confidence: Number(similarity.toFixed(3)), band: classifyConfidenceBand(similarity) };
+}
+
 export async function validateReferenceImage(params: {
   filePath: string;
   fileName: string;
@@ -155,7 +172,7 @@ export async function validateReferenceImage(params: {
     return {
       usable: false,
       qualityScore: 0,
-      faceCount: 0,
+      faceCount: null,
       width: 0,
       height: 0,
       qualityNotes: 'Image could not be decoded. Please upload a clear JPG, PNG, or WebP photo.',
@@ -173,24 +190,17 @@ export async function validateReferenceImage(params: {
     notes.push('Low visual contrast/sharpness detected.');
   }
 
-  // Heuristic multi-person hint if filename or wide group aspect suggests group photo
-  const lowerName = params.fileName.toLowerCase();
-  const faceCount =
-    /(group|crowd|couple|both|two_people|family)/i.test(lowerName)
-      ? 2
-      : params.role === 'person_include' || params.role === 'person_exclude'
-        ? 1
-        : 0;
-
-  if (faceCount > 1) {
-    notes.push('Multiple people likely visible; crop to one person for unambiguous matching.');
+  // The color descriptor is not a face detector. Never infer a face count from a filename.
+  const faceCount = null;
+  if (params.role === 'person_include' || params.role === 'person_exclude') {
+    notes.push('Face count and person identity are unverified. A validated matching engine is required before automatic selection.');
   }
   if ((params.role === 'person_include' || params.role === 'person_exclude') && !params.consentConfirmed) {
     notes.push('User authorization confirmation required before matching person appearances.');
   }
 
   const clampedScore = Math.max(0.05, Math.min(1, Number(qualityScore.toFixed(2))));
-  const usable = width >= 64 && height >= 64 && clampedScore >= 0.35;
+  const usable = width >= 64 && height >= 64 && clampedScore >= 0.35 && params.consentConfirmed;
 
   return {
     usable,
@@ -224,7 +234,14 @@ export function evaluateSegmentReferenceRules(params: {
   // 1. Strict exclusion always runs first
   for (const ex of excludeRefs) {
     const m = params.segmentMatches[ex.id];
-    if (!m) continue;
+    if (!m) {
+      return {
+        allowed: false,
+        needsReview: true,
+        matchedIds: [],
+        reason: 'Held for manual review: no verified exclusion evidence for ' + ex.label,
+      };
+    }
     if (m.band === 'high' || m.band === 'medium') {
       return {
         allowed: false,
@@ -255,7 +272,7 @@ export function evaluateSegmentReferenceRules(params: {
     .map((r) => r.id);
 
   const uncertainIds = includeRefs
-    .filter((ref) => params.segmentMatches[ref.id]?.band === 'uncertain')
+    .filter((ref) => !params.segmentMatches[ref.id] || params.segmentMatches[ref.id]?.band === 'uncertain')
     .map((r) => r.id);
 
   if (params.includeOperator === 'AND') {

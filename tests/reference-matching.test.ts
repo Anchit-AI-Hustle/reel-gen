@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { evaluateSegmentReferenceRules } from '../src/lib/vision/reference-matcher.ts';
+import { assessReferenceCandidate, evaluateSegmentReferenceRules } from '../src/lib/vision/reference-matcher.ts';
 import { parseCreativeInstruction } from '../src/lib/nlp/constraint-parser.ts';
 import { applyCopilotRevision, buildStoryTimeline } from '../src/lib/story/highlight-engine.ts';
 import type { MediaAssetRecord, ReferenceAsset } from '../src/types/reel-gen.ts';
@@ -121,4 +121,24 @@ test('Copilot revision mutates EDL cleanly for duration and clip replacement', (
   assert.equal(rev.updatedEdl.version, initial.edl.version + 1);
   assert.ok(rev.updatedEdl.actualDurationSec <= 5.2);
   assert.ok(rev.operations.length >= 1);
+});
+
+test('identical color descriptors cannot certify a person, product or object identity', () => {
+  const same = Array.from({ length: 24 }, () => 0.2);
+  for (const role of ['person_include', 'person_exclude', 'product_feature', 'object_find', 'scene_reference'] as const) {
+    assert.deepEqual(assessReferenceCandidate(role, same, same), { confidence: 0, band: 'uncertain' });
+  }
+  assert.equal(assessReferenceCandidate('visual_style', same, same).band, 'high');
+});
+
+test('strict exclusion rejects missing evidence rather than treating it as proof of absence', () => {
+  const result = evaluateSegmentReferenceRules({ segmentMatches: {}, references: [refExclude], includeOperator: 'PREFER', strictInclusion: false });
+  assert.equal(result.allowed, false);
+  assert.equal(result.needsReview, true);
+});
+
+test('strict inclusion holds missing evidence for review', () => {
+  const result = evaluateSegmentReferenceRules({ segmentMatches: {}, references: [refA], includeOperator: 'ONLY', strictInclusion: true });
+  assert.equal(result.allowed, false);
+  assert.equal(result.needsReview, true);
 });

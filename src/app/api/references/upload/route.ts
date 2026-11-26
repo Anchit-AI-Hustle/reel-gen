@@ -14,13 +14,18 @@ export async function POST(request: Request) {
     const prompt = String(formData.get('prompt') || '');
     const explicitRole = String(formData.get('role') || '') as ReferenceRoleType | '';
     const customLabel = String(formData.get('label') || '').trim();
-    const consentConfirmed = String(formData.get('consentConfirmed') || 'false') === 'true';
+    const consentConfirmed = formData.get('consentConfirmed') === 'true';
 
-    if (!file) {
+    if (!(file instanceof File)) {
       return NextResponse.json({ error: 'No reference image provided' }, { status: 400 });
     }
+    if (!consentConfirmed) {
+      return NextResponse.json({ error: 'Confirm you are authorized to use the reference image and source footage before uploading.' }, { status: 403 });
+    }
+    if (!file.type.startsWith('image/') || file.size === 0 || file.size > 20 * 1024 * 1024) {
+      return NextResponse.json({ error: 'Choose a valid image no larger than 20 MB.' }, { status: 400 });
+    }
 
-    if (!consentConfirmed) return NextResponse.json({ error: 'Permission to process reference images must be confirmed before upload.' }, { status: 400 });
     const buffer = Buffer.from(await file.arrayBuffer());
     const id = `ref_${crypto.randomBytes(5).toString('hex')}`;
     const safeName = path.basename(file.name).replace(/[^a-zA-Z0-9._ -]/g, '_');
@@ -36,6 +41,10 @@ export async function POST(request: Request) {
       consentConfirmed,
     });
 
+    if (!validation.usable) {
+      fs.rmSync(storagePath, { force: true });
+      return NextResponse.json({ error: validation.qualityNotes || 'Reference image is unusable.' }, { status: 422 });
+    }
     const asset: ReferenceAsset = {
       id,
       label: customLabel || safeName.replace(/\.[^.]+$/, ''),
