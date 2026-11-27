@@ -64,7 +64,7 @@ export interface ReferenceAsset {
   storagePath: string;
   previewUrl: string;
   qualityScore: number;
-  faceCount: number;
+  faceCount: number | null;
   usable: boolean;
   qualityNotes: string;
   descriptor?: number[];

@@ -15,8 +15,7 @@ import type {
   TimelineEdl,
 } from '@/types/reel-gen';
 import {
-  classifyConfidenceBand,
-  cosineSimilarity,
+  assessReferenceCandidate,
   extractVisualDescriptorFromFile,
 } from '../vision/reference-matcher.ts';
 
@@ -116,13 +115,9 @@ export async function analyzeVideoSegments(params: {
     const matchedReferenceIds: MediaSegment['matchedReferenceIds'] = {};
 
     for (const ref of references) {
-      if (ref.descriptor && ref.descriptor.length === frameInfo.descriptor.length) {
-        const sim = cosineSimilarity(ref.descriptor, frameInfo.descriptor);
-        matchedReferenceIds[ref.id] = {
-          confidence: Number(sim.toFixed(3)),
-          band: classifyConfidenceBand(sim),
-        };
-      }
+      matchedReferenceIds[ref.id] = assessReferenceCandidate(
+        ref.role, ref.descriptor ?? [], frameInfo.descriptor
+      );
     }
 
     const isBlurry = frameInfo.sharpness < 0.08;

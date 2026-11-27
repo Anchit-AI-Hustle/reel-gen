@@ -52,23 +52,15 @@ const ROLE_OPTIONS: Array<{ value: ReferenceRoleType; label: string }> = [
   { value: 'brand_logo', label: 'Brand reference' },
 ];
 
-const PIPELINE_STAGES = [
-  'Importing footage',
-  'Analyzing scenes',
-  'Finding matching moments',
-  'Building your story',
-  'Rendering MP4',
-  'Checking quality',
-];
 
 export default function CreatePage() {
   const [media, setMedia] = useState<MediaAssetRecord[]>([]);
   const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>([]);
   const [cloudLinksText, setCloudLinksText] = useState('');
-  const [showCloudInput, setShowCloudInput] = useState(false);
+  const [showCloudInput, setShowCloudInput] = useState(true);
   const [brief, setBrief] = useState('');
   const [references, setReferences] = useState<ReferenceAsset[]>([]);
-  const [consentConfirmed, setConsentConfirmed] = useState(true);
+  const [consentConfirmed, setConsentConfirmed] = useState(false);
 
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [durationSec, setDurationSec] = useState(30);
@@ -81,7 +73,7 @@ export default function CreatePage() {
   const [uploading, setUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
-  const [activeStageIdx, setActiveStageIdx] = useState(0);
+  
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [clarificationQ, setClarificationQ] = useState<string | null>(null);
 
@@ -184,6 +176,7 @@ export default function CreatePage() {
 
   const handleUploadReferences = async (fileList: FileList | null) => {
     if (!fileList || fileList.length === 0) return;
+    if (!consentConfirmed) { setErrorMsg('Confirm you have permission to process the reference images first.'); return; }
     setErrorMsg(null);
     for (const f of Array.from(fileList)) {
       const form = new FormData();
@@ -229,8 +222,7 @@ export default function CreatePage() {
   const playableSelectedCount = media.filter(
     (m) => selectedAssetIds.includes(m.id) && m.kind === 'video' && m.decodable
   ).length;
-  const hasCloudLinks = cloudLinksText.trim().length > 0;
-  const canGenerate = (playableSelectedCount > 0 || hasCloudLinks) && !generating && !uploading;
+  const canGenerate = playableSelectedCount > 0 && !generating && !uploading && (references.length === 0 || consentConfirmed);
 
   const handleReplaceReference = async (fileList: FileList | null) => {
     if (!fileList || fileList.length === 0 || !replacingRefId) return;
@@ -263,6 +255,7 @@ export default function CreatePage() {
     setErrorMsg(null);
     setClarificationQ(null);
     setRevisionNote(null);
+<<<<<<< HEAD
     setActiveStageIdx(0);
 
     const controller = new AbortController();
@@ -271,6 +264,8 @@ export default function CreatePage() {
     const timer = setInterval(() => {
       setActiveStageIdx((i) => (i < PIPELINE_STAGES.length - 1 ? i + 1 : i));
     }, 900);
+=======
+>>>>>>> 14d88b3b948f9ab3c95ed08313e2c1bc0ee97d84
 
     try {
       const cloudLinks = cloudLinksText
@@ -310,8 +305,11 @@ export default function CreatePage() {
         setErrorMsg(err?.message || 'Failed to generate reel');
       }
     } finally {
+<<<<<<< HEAD
       clearInterval(timer);
       generateAbortRef.current = null;
+=======
+>>>>>>> 14d88b3b948f9ab3c95ed08313e2c1bc0ee97d84
       setGenerating(false);
     }
   };
@@ -343,9 +341,6 @@ export default function CreatePage() {
     }
   };
 
-  const hasPersonReference = references.some(
-    (r) => r.role === 'person_include' || r.role === 'person_exclude'
-  );
 
   return (
     <div className="space-y-6">
@@ -401,7 +396,7 @@ export default function CreatePage() {
               <Upload className="mx-auto h-7 w-7 text-[#9A83FF] mb-2" />
               <p className="text-sm font-medium">Drop files or folders here</p>
               <p className="mt-1 text-xs text-[#A6AFC0]">
-                Videos, photos, audio, and project files — any file type accepted
+                Upload any file type. Playable formats are detected; other files are kept as project assets.
               </p>
 
               <div className="mt-4 flex flex-wrap items-center justify-center gap-2.5">
@@ -427,8 +422,9 @@ export default function CreatePage() {
                   className="inline-flex items-center gap-2 rounded-lg bg-[#222633] hover:bg-[#2C3142] border border-[#3B4052] px-3.5 py-2 text-xs font-semibold text-[#F5F5F8]"
                 >
                   <Cloud className="h-3.5 w-3.5" />
-                  Import from Cloud
+                  Paste cloud link
                 </button>
+                <Link href="/drives" className="inline-flex min-h-[44px] items-center gap-2 rounded-lg border border-[#4E447E] bg-[#221D3A] px-3.5 py-2 text-xs font-semibold text-[#DDD4FF]"><Cloud className="h-3.5 w-3.5" /> Connect / browse accounts</Link>
               </div>
 
               {/* No accept restriction per universal intake spec */}
@@ -437,7 +433,7 @@ export default function CreatePage() {
                 type="file"
                 multiple
                 className="hidden"
-                onChange={(e) => e.target.files && handleUploadFiles(e.target.files)}
+                onChange={(e) => { if (e.target.files) void handleUploadFiles(e.target.files); e.target.value = ''; }}
               />
               <input
                 ref={folderInputRef}
@@ -446,7 +442,7 @@ export default function CreatePage() {
                 // @ts-expect-error webkitdirectory is standard in modern browsers
                 webkitdirectory=""
                 className="hidden"
-                onChange={(e) => e.target.files && handleUploadFiles(e.target.files)}
+                onChange={(e) => { if (e.target.files) void handleUploadFiles(e.target.files); e.target.value = ''; }}
               />
             </div>
 
@@ -473,7 +469,7 @@ export default function CreatePage() {
                   className="w-full rounded-lg border border-[#3B4052] bg-[#0B0D12] px-3 py-2 text-xs text-[#F5F5F8] placeholder:text-[#6E778C] focus:border-[#9A83FF] focus:outline-none"
                 />
                 <div className="flex items-center justify-between text-[11px] text-[#A6AFC0]">
-                  <span>Links are validated against SSRF allowlists.</span>
+                  <span>A folder link is a source, not an imported file. Connect the account and import playable footage before generating.</span>
                   <Link href="/drives" className="text-[#9A83FF] hover:underline">
                     Manage Cloud Drives →
                   </Link>
@@ -549,7 +545,7 @@ export default function CreatePage() {
                 2. Describe your reel <span className="text-xs font-normal text-[#A6AFC0]">(optional)</span>
               </h2>
               <p className="text-xs text-[#A6AFC0]">
-                Describe your reel in your own words. Add reference images to help Reel Gen find specific people, products, or moments.
+                Describe your reel in your own words. Attach optional visual references. Automatic subject matching is not yet verified; unverified requirements will not be silently ignored.
               </p>
             </div>
 
@@ -566,10 +562,15 @@ export default function CreatePage() {
                 className="w-full rounded-xl border border-[#3B4052] bg-[#0E1118] px-3.5 py-3 text-sm text-[#F5F5F8] placeholder:text-[#6E778C] focus:border-[#9A83FF] focus:outline-none"
               />
 
+              <label className="flex items-start gap-2 text-xs text-[#C7CDD9] cursor-pointer">
+                <input type="checkbox" checked={consentConfirmed} onChange={(e) => setConsentConfirmed(e.target.checked)} className="mt-0.5 accent-[#9A83FF]" />
+                <span><ShieldCheck className="inline h-3.5 w-3.5 text-[#9A83FF] mr-1" />I have permission to process the reference images and source footage.</span>
+              </label>
               {/* Inline Reference Image Attachment Control */}
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <button
                   type="button"
+                  disabled={!consentConfirmed}
                   onClick={() => refInputRef.current?.click()}
                   className="inline-flex items-center gap-2 rounded-lg border border-[#4E447E] bg-[#221D3A] hover:bg-[#2D264D] px-3 py-1.5 text-xs font-semibold text-[#DDD4FF]"
                 >
@@ -585,7 +586,7 @@ export default function CreatePage() {
                   accept="image/*"
                   multiple
                   className="hidden"
-                  onChange={(e) => handleUploadReferences(e.target.files)}
+                  onChange={(e) => { void handleUploadReferences(e.target.files); e.target.value = ''; }}
                 />
                 <input
                   ref={replaceRefInputRef}
@@ -652,20 +653,6 @@ export default function CreatePage() {
                     ))}
                   </div>
 
-                  {hasPersonReference && (
-                    <label className="flex items-start gap-2 text-xs text-[#C7CDD9] cursor-pointer pt-1">
-                      <input
-                        type="checkbox"
-                        checked={consentConfirmed}
-                        onChange={(e) => setConsentConfirmed(e.target.checked)}
-                        className="mt-0.5 accent-[#9A83FF]"
-                      />
-                      <span>
-                        <ShieldCheck className="inline h-3.5 w-3.5 text-[#9A83FF] mr-1" />
-                        I confirm I am authorized to process these reference photos and source footage. Visual representations stay scoped to this project only.
-                      </span>
-                    </label>
-                  )}
                 </div>
               )}
 
@@ -806,28 +793,9 @@ export default function CreatePage() {
                 </button>
               </div>
               <p className="text-xs text-[#A6AFC0]">
-                Running real FFprobe analysis, reference matching, story planning, and FFmpeg H.264 MP4 rendering.
+                Analyzing available footage and preparing the edit. Rendering requires an available FFmpeg worker.
               </p>
-              <ol className="space-y-2.5 pt-2">
-                {PIPELINE_STAGES.map((stage, idx) => {
-                  const done = idx < activeStageIdx;
-                  const active = idx === activeStageIdx;
-                  return (
-                    <li key={stage} className="flex items-center gap-3 text-sm">
-                      {done ? (
-                        <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
-                      ) : active ? (
-                        <Loader2 className="h-4 w-4 animate-spin text-[#9A83FF] shrink-0" />
-                      ) : (
-                        <span className="h-4 w-4 rounded-full border border-[#3B4052] shrink-0" />
-                      )}
-                      <span className={done || active ? 'text-[#F5F5F8]' : 'text-[#6E778C]'}>
-                        {stage}
-                      </span>
-                    </li>
-                  );
-                })}
-              </ol>
+              <div role="status" aria-live="polite" className="flex items-center gap-3 text-sm text-[#C7CDD9]"><Loader2 className="h-4 w-4 animate-spin text-[#9A83FF]" /> Waiting for the generation service. Verified stage updates are not available yet.</div>
             </section>
           ) : generatedProject && generatedProject.latestArtifact ? (
             <section className="rounded-2xl border border-[#303441] bg-[#171A23] p-5 space-y-4">

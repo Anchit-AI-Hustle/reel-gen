@@ -13,11 +13,11 @@ import type { MediaAssetRecord, ReferenceAsset } from '../src/types/reel-gen.ts'
 
 const execFileAsync = promisify(execFile);
 
-test('Real-media E2E: FFmpeg synthetic clips + reference image matching + vertical H264/AAC MP4 render + FFprobe QA', async () => {
+test('Synthetic-media integration: reject unverified identity evidence and separately render real vertical H264/AAC MP4', async () => {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'reelgen-e2e-'));
   try {
-    const clipBluePath = path.join(tmpDir, 'person_blue_scene.mp4');
-    const clipRedPath = path.join(tmpDir, 'other_red_scene.mp4');
+    const clipBluePath = path.join(tmpDir, 'blue_color_fixture.mp4');
+    const clipRedPath = path.join(tmpDir, 'red_color_fixture.mp4');
     const refBlueImg = path.join(tmpDir, 'ref_blue.png');
     const outMp4Path = path.join(tmpDir, 'final_reel.mp4');
 
@@ -55,7 +55,7 @@ test('Real-media E2E: FFmpeg synthetic clips + reference image matching + vertic
 
     const refAsset: ReferenceAsset = {
       id: 'ref_blue',
-      label: 'Blue Subject',
+      label: 'Synthetic blue reference',
       fileName: 'ref_blue.png',
       mimeType: 'image/png',
       role: 'person_include',
@@ -64,7 +64,7 @@ test('Real-media E2E: FFmpeg synthetic clips + reference image matching + vertic
       storagePath: refBlueImg,
       previewUrl: '/api/files/references/ref_blue.png',
       qualityScore: refVal.qualityScore,
-      faceCount: 1,
+      faceCount: refVal.faceCount,
       usable: true,
       qualityNotes: refVal.qualityNotes,
       descriptor: refVal.descriptor,
@@ -134,24 +134,47 @@ test('Real-media E2E: FFmpeg synthetic clips + reference image matching + vertic
     for (const a of assets) {
       a.segments = await analyzeVideoSegments({ asset: a, references: [refAsset] });
     }
-    assert.equal(assets[0].segments[0].matchedReferenceIds.ref_blue.band, 'high');
-    assert.notEqual(assets[1].segments[0].matchedReferenceIds.ref_blue.band, 'high');
+    // A solid-color frame has no identity evidence, even when its colors match.
+    assert.equal(refVal.faceCount, null);
+    for (const asset of assets) {
+      assert.ok(asset.segments.length > 0);
+      for (const segment of asset.segments) {
+        assert.equal(segment.matchedReferenceIds.ref_blue.band, 'uncertain');
+        assert.equal(segment.matchedReferenceIds.ref_blue.confidence, 0);
+      }
+    }
 
-    // 5. Parse strict inclusion brief & build timeline
-    const parsed = parseCreativeInstruction({
+    // Strict inclusion must fail closed rather than promote color similarity to identity.
+    const strictParsed = parseCreativeInstruction({
       prompt: 'Create a 5-second vertical reel using only footage where this person appears.',
       references: [refAsset],
+    });
+    assert.ok(strictParsed.constraints.some(c => c.type === 'subject_inclusion' && c.enforcement === 'hard'));
+    const strictStory = buildStoryTimeline({
+      assets,
+      parsed: strictParsed,
+      references: [refAsset],
+      resolution: '720p',
+    });
+    assert.equal(strictStory.edl.clips.length, 0);
+    assert.equal(strictStory.complianceReport.overallCompliant, false);
+    assert.ok(strictStory.complianceReport.couldNotBeSatisfied.some(item =>
+      item.constraintId === strictParsed.constraints.find(c => c.type === 'subject_inclusion')?.id
+    ));
+
+    // Independently verify a real render without imposing an unverified identity constraint.
+    const parsed = parseCreativeInstruction({
+      prompt: 'Create a 5-second vertical reel.',
+      references: [],
     });
     const story = buildStoryTimeline({
       assets,
       parsed,
-      references: [refAsset],
+      references: [],
       resolution: '720p',
     });
-
-    // Strict inclusion must keep ONLY the blue clip and exclude the red clip
-    assert.equal(story.edl.clips.length, 1);
-    assert.equal(story.edl.clips[0].assetId, 'asset_blue');
+    assert.ok(story.edl.clips.length > 0);
+    assert.ok(story.edl.clips.every(clip => clip.matchedReferenceIds.length === 0));
 
     // 6. Render genuine vertical 9:16 H.264/AAC MP4 & verify with FFprobe QA
     const artifact = await renderEdlToMp4({

@@ -1,0 +1,13 @@
+name = "reel-gen-api"
+main = "src/cloudflare/worker.mjs"
+compatibility_date = "2026-11-24"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "reel-gen-db"
+database_id = "e2a1fd81-2709-42ca-8142-9fd69b2477c6"
+
+# R2 requires account-owner subscription activation before its binding can be enabled.
+# [[r2_buckets]]
+# binding = "MEDIA_BUCKET"
+# bucket_name = "reel-gen-media"

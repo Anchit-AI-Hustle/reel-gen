@@ -312,7 +312,7 @@ export function parseCreativeInstruction(params: {
   }
 
   // Contradiction check 3: Multi-face ambiguous reference photo
-  const ambiguousFaceRef = references.find((r) => (r.role === 'person_include' || r.role === 'person_exclude') && r.faceCount > 1);
+  const ambiguousFaceRef = references.find((r) => (r.role === 'person_include' || r.role === 'person_exclude') && (r.faceCount ?? 0) > 1);
   if (ambiguousFaceRef) {
     contradictions.push({
       id: makeId('contra_multiface'),
