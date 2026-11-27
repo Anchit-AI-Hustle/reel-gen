@@ -255,17 +255,8 @@ export default function CreatePage() {
     setErrorMsg(null);
     setClarificationQ(null);
     setRevisionNote(null);
-<<<<<<< HEAD
-    setActiveStageIdx(0);
-
     const controller = new AbortController();
     generateAbortRef.current = controller;
-
-    const timer = setInterval(() => {
-      setActiveStageIdx((i) => (i < PIPELINE_STAGES.length - 1 ? i + 1 : i));
-    }, 900);
-=======
->>>>>>> 14d88b3b948f9ab3c95ed08313e2c1bc0ee97d84
 
     try {
       const cloudLinks = cloudLinksText
@@ -305,12 +296,10 @@ export default function CreatePage() {
         setErrorMsg(err?.message || 'Failed to generate reel');
       }
     } finally {
-<<<<<<< HEAD
-      clearInterval(timer);
-      generateAbortRef.current = null;
-=======
->>>>>>> 14d88b3b948f9ab3c95ed08313e2c1bc0ee97d84
-      setGenerating(false);
+      if (generateAbortRef.current === controller) {
+        generateAbortRef.current = null;
+        setGenerating(false);
+      }
     }
   };
 
