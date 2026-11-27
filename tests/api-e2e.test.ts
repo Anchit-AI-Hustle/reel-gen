@@ -29,7 +29,7 @@ import type { D1DatabaseLike } from '../src/cloudflare/d1-repository.ts';
 import type { R2BucketLike } from '../src/cloudflare/storage.ts';
 import type { MediaAssetRecord, ReferenceAsset } from '../src/types/reel-gen.ts';
 
-test('Full-stack E2E: Auth + Intake + Shoot Inference + Reference Matching + Strict MP4 Render + FFprobe QA + Copilot + Cloudflare Worker R2', async () => {
+test('Integration: Auth + Intake + Shoot Inference + Fail-closed Identity + Real MP4 + FFprobe + Copilot + Mock Worker R2', async () => {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'reelgen-fullstack-e2e-'));
   try {
     // 1. Auth: scrypt hashing, AES-256-GCM encryption, signed session token, workspace isolation
@@ -84,7 +84,7 @@ test('Full-stack E2E: Auth + Intake + Shoot Inference + Reference Matching + Str
       storagePath: refBlue,
       previewUrl: '/api/files/references/ref_blue.png',
       qualityScore: refVal.qualityScore,
-      faceCount: 1,
+      faceCount: refVal.faceCount,
       usable: true,
       qualityNotes: refVal.qualityNotes,
       descriptor: refVal.descriptor,
@@ -118,13 +118,28 @@ test('Full-stack E2E: Auth + Intake + Shoot Inference + Reference Matching + Str
       a.segments = await analyzeVideoSegments({ asset: a, references: [refAsset] });
     }
 
-    const parsed = parseCreativeInstruction({
+    assert.equal(refVal.faceCount, null);
+    for (const asset of assets) {
+      assert.ok(asset.segments.length > 0);
+      for (const segment of asset.segments) {
+        assert.equal(segment.matchedReferenceIds.ref_blue.band, 'uncertain');
+        assert.equal(segment.matchedReferenceIds.ref_blue.confidence, 0);
+      }
+    }
+    const strictParsed = parseCreativeInstruction({
       prompt: 'Create a 5-second vertical reel using only footage where this person appears.',
       references: [refAsset],
     });
-    const story = buildStoryTimeline({ assets, parsed, references: [refAsset], resolution: '720p' });
-    assert.equal(story.edl.clips.length, 1);
-    assert.equal(story.edl.clips[0].assetId, 'a_blue');
+    const strictStory = buildStoryTimeline({ assets, parsed: strictParsed, references: [refAsset], resolution: '720p' });
+    assert.equal(strictStory.edl.clips.length, 0);
+    assert.equal(strictStory.complianceReport.overallCompliant, false);
+    assert.ok(strictStory.complianceReport.couldNotBeSatisfied.some(item => item.constraintId === strictParsed.constraints.find(c => c.type === 'subject_inclusion')?.id));
+
+    // Independently exercise rendering, revision and storage without a false identity claim.
+    const parsed = parseCreativeInstruction({ prompt: 'Create a 5-second vertical reel.', references: [] });
+    const story = buildStoryTimeline({ assets, parsed, references: [], resolution: '720p' });
+    assert.ok(story.edl.clips.length > 0);
+    assert.ok(story.edl.clips.every(clip => clip.matchedReferenceIds.length === 0));
 
     const artV1 = await renderEdlToMp4({
       edl: story.edl,
@@ -146,7 +161,7 @@ test('Full-stack E2E: Auth + Intake + Shoot Inference + Reference Matching + Str
       edl: story.edl,
       prompt: 'Make it 2 seconds',
       assets,
-      references: [refAsset],
+      references: [],
     });
     assert.equal(rev.updatedEdl.version, 2);
     const artV2 = await renderEdlToMp4({
