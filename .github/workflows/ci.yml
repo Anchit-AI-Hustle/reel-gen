@@ -15,31 +15,16 @@ jobs:
         with:
           node-version: 22
           cache: npm
-<<<<<<< HEAD
-      - name: Install FFmpeg and SQLite3
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg sqlite3
-      - name: Verify Zero Neon & Zero Supabase Dependencies
-        run: |
-          if grep -riE "supabase|@neondatabase|neon-repository|neon-store" package.json src/ db/ worker/; then
-            echo "ERROR: Prohibited Neon or Supabase reference detected!"
-            exit 1
-          fi
-      - name: Verify Cloudflare D1 SQLite Migrations
-        run: |
-          sqlite3 /tmp/d1_ci_check.sqlite < db/migrations/0001_initial.sql
-          sqlite3 /tmp/d1_ci_check.sqlite < db/migrations/0002_reference_matching.sql
-          sqlite3 /tmp/d1_ci_check.sqlite "PRAGMA foreign_keys=ON; PRAGMA integrity_check;"
-=======
       - name: Install FFmpeg
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg
-      - name: Verify Zero Supabase Runtime Dependencies
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg sqlite3
+      - name: Verify Zero Supabase and Neon Runtime Dependencies
         run: |
           node --input-type=module <<'CHECK'
           import fs from 'node:fs';
           import path from 'node:path';
           const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
           const deps = Object.keys({ ...pkg.dependencies, ...pkg.devDependencies, ...pkg.optionalDependencies });
-          const forbidden = deps.filter(name => /supabase/i.test(name));
+          const forbidden = deps.filter(name => /supabase|@neondatabase|neon-repository|neon-store/i.test(name));
           if (forbidden.length) {
             console.error('Forbidden Supabase packages:', forbidden.join(', '));
             process.exit(1);
@@ -55,7 +40,7 @@ jobs:
             }
           }
           walk('src');
-          const importPattern = /(?:from\s*['"]|require\s*\(\s*['"]|import\s*\(\s*['"])(?:@supabase\/|supabase(?:\/|['"]))/i;
+          const importPattern = /(?:from\s*['"]|require\s*\(\s*['"]|import\s*\(\s*['"])(?:@supabase\/|supabase(?:\/|['"])|@neondatabase\/|neon-repository|neon-store)/i;
           const violations = files.filter(file => importPattern.test(fs.readFileSync(file, 'utf8')));
           if (violations.length) {
             console.error('Forbidden Supabase imports:', violations.join(', '));
@@ -66,7 +51,18 @@ jobs:
       - name: Check setup shell syntax
         run: |
           if [ -f setup-cloudflare-and-vercel.sh ]; then bash -n setup-cloudflare-and-vercel.sh; fi
->>>>>>> 14d88b3b948f9ab3c95ed08313e2c1bc0ee97d84
+      - name: Reject committed merge conflict markers
+        run: |
+          if git grep -nE '^(<{7} |={7}$|>{7} )' -- '*.ts' '*.tsx' '*.js' '*.mjs' '*.yml' '*.yaml' '*.sql' '*.sh' '*.json' '*.toml'; then
+            echo "Unresolved merge conflict markers found"
+            exit 1
+          fi
+      - name: Verify Cloudflare D1 SQLite migrations
+        run: |
+          sqlite3 -bail /tmp/d1_ci_check.sqlite < db/migrations/0001_initial.sql
+          sqlite3 -bail /tmp/d1_ci_check.sqlite < db/migrations/0002_reference_matching.sql
+          test "$(sqlite3 /tmp/d1_ci_check.sqlite 'PRAGMA integrity_check;')" = ok
+          test -z "$(sqlite3 /tmp/d1_ci_check.sqlite 'PRAGMA foreign_key_check;')"
       - name: Install dependencies
         run: npm ci
       - name: TypeScript typecheck
