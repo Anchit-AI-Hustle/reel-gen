@@ -331,3 +331,34 @@ export interface ActivityEventRecord {
   detail: string;
   createdAt: string;
 }
+
+export interface SourceConnectionRecord {
+  id: string;
+  workspaceId: string;
+  provider: CloudProviderId;
+  accountEmail: string | null;
+  accountLabel: string | null;
+  status: 'connected' | 'disconnected' | 'needs_authorization' | 'expired' | 'permission_denied' | 'syncing' | 'failed';
+  encryptedAccessToken: string | null;
+  encryptedRefreshToken: string | null;
+  tokenExpiresAt: string | null;
+  scopes: string[];
+  lastSyncedAt: string | null;
+  lastError: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PublicSourceConnection {
+  id: string;
+  provider: CloudProviderId;
+  accountEmail: string | null;
+  accountLabel: string | null;
+  status: SourceConnectionRecord['status'];
+  tokenExpiresAt: string | null;
+  scopes: string[];
+  lastSyncedAt: string | null;
+  lastError: string | null;
+  updatedAt: string;
+}
+

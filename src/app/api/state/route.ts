@@ -6,13 +6,37 @@ import {
   writeWorkspaceState,
 } from '@/lib/db/cloudflare-store';
 import { getCloudProvidersStatus } from '@/lib/cloud/providers';
+import { getProviderRedirectUri } from '@/lib/cloud/oauth';
+import type { PublicSourceConnection } from '@/types/reel-gen';
 
-export async function GET() {
+export async function GET(request: Request) {
   const state = readWorkspaceState();
+  const { sourceConnections = [], ...restState } = state;
+
+  // Never leak encrypted or raw OAuth tokens to the browser
+  const connections: PublicSourceConnection[] = sourceConnections.map((c) => ({
+    id: c.id,
+    provider: c.provider,
+    accountEmail: c.accountEmail,
+    accountLabel: c.accountLabel,
+    status: c.status,
+    tokenExpiresAt: c.tokenExpiresAt,
+    scopes: c.scopes,
+    lastSyncedAt: c.lastSyncedAt,
+    lastError: c.lastError,
+    updatedAt: c.updatedAt,
+  }));
+
+  const providers = getCloudProvidersStatus().map((p) => ({
+    ...p,
+    redirectUri: getProviderRedirectUri(p.id, request.url),
+  }));
+
   return NextResponse.json({
-    ...state,
+    ...restState,
+    connections,
     database: getDatabaseStatus(),
-    providers: getCloudProvidersStatus(),
+    providers,
   });
 }
 

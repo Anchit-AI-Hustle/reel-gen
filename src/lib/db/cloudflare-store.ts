@@ -7,6 +7,7 @@ import type {
   ProcessingJobRecord,
   ProjectRecord,
   RenderArtifactRecord,
+  SourceConnectionRecord,
 } from '@/types/reel-gen';
 import { createWorkspaceClaimSignature } from '@/cloudflare/auth';
 
@@ -17,6 +18,7 @@ export interface WorkspaceStoreState {
   jobs: ProcessingJobRecord[];
   artifacts: RenderArtifactRecord[];
   activity: ActivityEventRecord[];
+  sourceConnections?: SourceConnectionRecord[];
   settings: {
     workspaceName: string;
     defaultDurationSec: number;
